@@ -1149,6 +1149,21 @@ p {
     font-style: italic;
 }
 
+.footer-credits a {
+    color: #f0d89a;
+    text-decoration: none;
+    font-weight: 600;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    border-bottom: 1px solid rgba(240, 216, 154, 0.5);
+    padding-bottom: 2px;
+}
+
+.footer-credits a:hover {
+    color: #c79f56;
+    border-bottom-color: #c79f56;
+    text-decoration: none;
+}
+
 .footer-credits .heart {
     color: #c79f56;
     margin: 0 0.25rem;
