@@ -28,6 +28,9 @@ const elements = {
     loadingIndicator: document.getElementById('loadingIndicator'),
     noImagesMessage: document.getElementById('noImagesMessage'),
     endOfGallery: document.getElementById('endOfGallery'),
+    loadMoreContainer: document.getElementById('loadMoreContainer'),
+    loadMoreBtn: document.getElementById('loadMoreBtn'),
+    loadMoreLoadingSpinner: document.getElementById('loadMoreLoadingSpinner'),
     lightbox: document.getElementById('lightbox'),
     lightboxImage: document.getElementById('lightboxImage'),
     lightboxCaption: document.getElementById('lightboxCaption'),
@@ -36,7 +39,8 @@ const elements = {
     lightboxPrev: document.querySelector('.lightbox-prev'),
     lightboxNext: document.querySelector('.lightbox-next'),
     lightboxOverlay: document.querySelector('.lightbox-overlay'),
-    skeletonTemplate: document.getElementById('skeletonTemplate')
+    lightboxLikeBtn: document.getElementById('lightboxLikeBtn'),
+    lightboxLikeCount: document.querySelector('.lightbox-like-count')
 };
 
 /* ===== Particle Animation Canvas ===== */
@@ -111,9 +115,6 @@ async function fetchPhotos(page = 1) {
     // Show loading indicator on first page, keep it visible on subsequent pages
     if (page === 1) {
         elements.loadingIndicator.style.display = 'flex';
-    } else {
-        // For infinite scroll, ensure loading indicator stays visible
-        elements.loadingIndicator.style.display = 'flex';
     }
 
     try {
@@ -144,17 +145,26 @@ async function fetchPhotos(page = 1) {
         hasMore = data.hasMore;
         renderPhotos(data.photos, page === 1);
 
-        // Only hide loading indicator when all images are loaded
-        if (!hasMore) {
+        // Show/hide load more button and spinner based on whether there are more photos
+        if (hasMore) {
+            // Hide spinner and show button after loading is complete
+            elements.loadMoreLoadingSpinner.style.display = 'none';
+            elements.loadingIndicator.style.display = 'none';
+            setTimeout(() => {
+                elements.loadMoreContainer.style.display = 'flex';
+            }, 300);
+            elements.endOfGallery.style.display = 'none';
+        } else {
+            elements.loadMoreContainer.style.display = 'none';
+            elements.loadMoreLoadingSpinner.style.display = 'none';
+            elements.loadingIndicator.style.display = 'none';
             setTimeout(() => {
                 elements.endOfGallery.style.display = 'block';
-                elements.loadingIndicator.style.display = 'none';
             }, 300);
-        } else {
-            // Keep loading indicator visible for next batch but briefly hide and show
-            elements.loadingIndicator.style.display = 'none';
-            elements.loadingIndicator.style.display = 'flex';
         }
+
+        // Load like counts for all photos
+        loadPhotoLikes();
 
         isLoading = false;
     } catch (error) {
@@ -241,6 +251,29 @@ function renderPhotos(photos, clear = false) {
             }
         });
 
+        // Create like button container
+        const likeContainer = document.createElement('div');
+        likeContainer.className = 'photo-like-container';
+        
+        const likeBtn = document.createElement('button');
+        likeBtn.className = 'photo-like-btn';
+        likeBtn.setAttribute('data-photo-id', photo.id);
+        likeBtn.innerHTML = `
+            <svg class="like-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+            </svg>
+            <span class="like-count">0</span>
+        `;
+        
+        // Prevent lightbox from opening when clicking like button
+        likeBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            likePhoto(photo.id, likeBtn);
+        });
+        
+        likeContainer.appendChild(likeBtn);
+        photoCard.appendChild(likeContainer);
+
         elements.galleryGrid.appendChild(photoCard);
 
         // Calculate animation delay based on position in current batch
@@ -256,29 +289,18 @@ function renderPhotos(photos, clear = false) {
     });
 }
 
-/* ===== Infinite Scroll ===== */
-function setupInfiniteScroll() {
-    const observer = new IntersectionObserver((entries) => {
-        entries.forEach(entry => {
-            // Trigger loading when indicator is visible or approaching
-            if (entry.isIntersecting && !isLoading && hasMore) {
+/* ===== Load More Button Setup ===== */
+function setupLoadMore() {
+    if (elements.loadMoreBtn) {
+        elements.loadMoreBtn.addEventListener('click', () => {
+            if (!isLoading && hasMore) {
+                // Hide the button and show loading spinner
+                elements.loadMoreContainer.style.display = 'none';
+                elements.loadMoreLoadingSpinner.style.display = 'flex';
                 currentPage++;
                 fetchPhotos(currentPage);
             }
         });
-    }, {
-        // Larger rootMargin to trigger loading earlier, ensuring all images load
-        rootMargin: '1000px'
-    });
-
-    // Observe the loading indicator for infinite scroll trigger
-    if (elements.loadingIndicator) {
-        observer.observe(elements.loadingIndicator);
-    }
-
-    // Also observe the end of gallery message in case indicator disappears
-    if (elements.endOfGallery) {
-        observer.observe(elements.endOfGallery);
     }
 }
 
@@ -305,6 +327,11 @@ function updateLightboxImage() {
     elements.lightboxImage.alt = photo.alt;
     elements.lightboxCaption.textContent = photo.title;
     elements.lightboxCounter.textContent = `${lightboxCurrentIndex + 1} of ${allPhotos.length}`;
+    
+    // Update like button with current photo ID and load like count
+    const lightboxLikeBtn = document.getElementById('lightboxLikeBtn');
+    lightboxLikeBtn.setAttribute('data-photo-id', photo.id);
+    updateLightboxLikeCount(photo.id);
 }
 
 function nextImage() {
@@ -315,6 +342,111 @@ function nextImage() {
 function prevImage() {
     lightboxCurrentIndex = (lightboxCurrentIndex - 1 + allPhotos.length) % allPhotos.length;
     updateLightboxImage();
+}
+
+/* ===== Like Function ===== */
+async function likePhoto(photoId, likeBtn) {
+    try {
+        const response = await fetch(`/api/photos/${photoId}/like`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        if (!response.ok) throw new Error('Failed to like photo');
+        
+        const data = await response.json();
+        
+        // Update like count display
+        const likeCount = likeBtn.querySelector('.like-count');
+        likeCount.textContent = data.likes;
+        
+        // Add animation class
+        likeBtn.classList.add('liked');
+        
+        // Remove animation class after animation completes
+        setTimeout(() => {
+            likeBtn.classList.remove('liked');
+        }, 600);
+        
+        console.log('Photo liked successfully');
+    } catch (error) {
+        console.error('Error liking photo:', error);
+    }
+}
+
+async function likePhotoLightbox(photoId) {
+    try {
+        const response = await fetch(`/api/photos/${photoId}/like`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        if (!response.ok) throw new Error('Failed to like photo');
+        
+        const data = await response.json();
+        
+        // Update lightbox like count display
+        if (elements.lightboxLikeCount) {
+            elements.lightboxLikeCount.textContent = data.likes;
+        }
+        
+        // Add animation class
+        elements.lightboxLikeBtn.classList.add('liked');
+        
+        // Remove animation class after animation completes
+        setTimeout(() => {
+            elements.lightboxLikeBtn.classList.remove('liked');
+        }, 600);
+        
+        console.log('Photo liked successfully from lightbox');
+    } catch (error) {
+        console.error('Error liking photo from lightbox:', error);
+    }
+}
+
+async function loadPhotoLikes() {
+    try {
+        const response = await fetch('/api/photos/likes/all');
+        if (!response.ok) throw new Error('Failed to load likes');
+        
+        const data = await response.json();
+        const likesMap = data.likes;
+        
+        // Update all like buttons with counts
+        document.querySelectorAll('.photo-like-btn').forEach(btn => {
+            const photoId = parseInt(btn.getAttribute('data-photo-id'));
+            const count = likesMap[photoId] || 0;
+            const likeCount = btn.querySelector('.like-count');
+            likeCount.textContent = count;
+        });
+        
+        // Also update lightbox like count if visible
+        if (elements.lightboxLikeCount && elements.lightboxLikeBtn) {
+            const photoId = parseInt(elements.lightboxLikeBtn.getAttribute('data-photo-id'));
+            const count = likesMap[photoId] || 0;
+            elements.lightboxLikeCount.textContent = count;
+        }
+    } catch (error) {
+        console.error('Error loading photo likes:', error);
+    }
+}
+
+async function updateLightboxLikeCount(photoId) {
+    try {
+        const response = await fetch(`/api/photos/${photoId}/likes`);
+        if (!response.ok) throw new Error('Failed to load like count');
+        
+        const data = await response.json();
+        if (elements.lightboxLikeCount) {
+            elements.lightboxLikeCount.textContent = data.likes;
+        }
+    } catch (error) {
+        console.error('Error loading lightbox like count:', error);
+    }
 }
 
 /* ===== Lightbox Event Listeners ===== */
@@ -332,6 +464,14 @@ if (elements.lightboxNext) {
 
 if (elements.lightboxOverlay) {
     elements.lightboxOverlay.addEventListener('click', closeLightbox);
+}
+
+// Lightbox like button listener
+if (elements.lightboxLikeBtn) {
+    elements.lightboxLikeBtn.addEventListener('click', () => {
+        const photoId = parseInt(elements.lightboxLikeBtn.getAttribute('data-photo-id'));
+        likePhotoLightbox(photoId);
+    });
 }
 
 // Keyboard navigation for lightbox
@@ -371,14 +511,6 @@ window.addEventListener('scroll', () => {
 });
 
 /* ===== Performance: Blur-up Images ===== */
-function setupBlurUpImages() {
-    const images = document.querySelectorAll('.photo-image');
-    images.forEach(img => {
-        if (img.complete) {
-            img.previousElementSibling?.style.display === 'none';
-        }
-    });
-}
 
 /* ===== Masonry helpers ===== */
 function setGridItem(item) {
@@ -417,55 +549,6 @@ function debounce(fn, wait) {
 }
 
 /* ===== Hero Parallax ===== */
-function initHeroParallax() {
-    const hero = document.querySelector('.hero');
-    if (!hero) return;
-
-    const ornaments = Array.from(document.querySelectorAll('.leaf-ornament'));
-    const cards = Array.from(document.querySelectorAll('.hero-decorative-card'));
-
-    let lastMove = null;
-    let rafId = null;
-
-    function applyParallax(event) {
-        const rect = hero.getBoundingClientRect();
-        const x = ((event.clientX - rect.left) / rect.width) - 0.5; // -0.5 .. 0.5
-        const y = ((event.clientY - rect.top) / rect.height) - 0.5;
-
-        ornaments.forEach((el, i) => {
-            const depth = (i + 1) * 8; // small depth steps
-            const tx = -x * depth;
-            const ty = -y * (depth * 0.6);
-            el.style.transform = `translate3d(${tx}px, ${ty}px, 0) rotate(${x * (i + 1) * 4}deg)`;
-        });
-
-        cards.forEach((el, i) => {
-            const depth = (i + 1) * 10;
-            const tx = -x * depth * 0.6;
-            const ty = -y * depth * 0.35;
-            el.style.transform = `translate3d(${tx}px, ${ty}px, 0)`;
-        });
-    }
-
-    hero.addEventListener('mousemove', (e) => {
-        lastMove = e;
-        if (rafId) return;
-        rafId = requestAnimationFrame(() => {
-            applyParallax(lastMove);
-            rafId = null;
-        });
-    });
-
-    // subtle scroll parallax
-    window.addEventListener('scroll', () => {
-        const scrolled = window.scrollY / (window.innerHeight || 1);
-        ornaments.forEach((el, i) => {
-            const ty = Math.min(40, scrolled * (i + 1) * 6);
-            el.style.transform = `${el.style.transform || ''} translateY(${ty}px)`;
-        });
-    }, { passive: true });
-}
-
 /* ===== Scroll reveal (intersection observer) ===== */
 function setupScrollReveal() {
     const revealEls = document.querySelectorAll('.reveal-on-scroll');
@@ -504,22 +587,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Init gallery
     fetchPhotos(1);
-    setupInfiniteScroll();
+    setupLoadMore();
 
-    // Mobile responsiveness for leaf ornaments
-    if (window.innerWidth < 768) {
-        document.querySelectorAll('.leaf-ornament').forEach(leaf => {
-            leaf.style.opacity = '0.5';
-        });
-    }
     // Recalculate masonry spans after images finish loading and on resize
     // Small timeout ensures first batch of images has started loading
     setTimeout(() => resizeAllGridItems(), 300);
     window.addEventListener('resize', debounce(() => {
         resizeAllGridItems();
     }, 150));
-    // Init hero parallax for ornaments and decorative cards
-    initHeroParallax();
     // Init scroll reveal animations
     setupScrollReveal();
 });

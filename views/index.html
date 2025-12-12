@@ -13,19 +13,35 @@
     <nav class="navbar">
         <div class="navbar-container">
             <div class="logo">
-                <svg class="logo-leaf" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                    <path d="M12 2c0 0-8 4-8 10c0 4 3 8 8 8s8-4 8-8c0-6-8-10-8-10z" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                <svg class="logo-heart" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
                 </svg>
                 <span>Azhar & Fathin</span>
             </div>
             <ul class="nav-links">
                 <li><a href="#gallery" class="nav-link">Gallery</a></li>
-                <li><a href="#contact" class="nav-link">Contact</a></li>
             </ul>
         </div>
     </nav>
 
-    <!-- Hero removed per request -->
+    <!-- Hero Section -->
+    <section class="hero">
+        <div class="hero-background">
+            <div class="hero-gradient"></div>
+            <div class="hero-decorative-shape shape-1"></div>
+            <div class="hero-decorative-shape shape-2"></div>
+        </div>
+        <div class="hero-content">
+            <div class="hero-inner">
+                <h1 class="hero-title">Azhar & Fathin</h1>
+                <p class="hero-subtitle">A wedding story written in light and love</p>
+                <div class="hero-meta">5 December 2025 • Magelang</div>
+                <div class="hero-cta">
+                    <a href="#gallery" class="btn btn-primary">Explore Gallery</a>
+                </div>
+            </div>
+        </div>
+    </section>
 
     <!-- Gallery Section -->
     <section id="gallery" class="gallery-section">
@@ -51,6 +67,17 @@
                 <p>📸 No images found</p>
                 <p class="text-muted">Add images to the <code>images</code> folder to get started</p>
             </div>
+
+            <!-- Load More Button -->
+            <div id="loadMoreContainer" class="load-more-container" style="display: none;">
+                <button id="loadMoreBtn" class="btn btn-primary">Load More Photos</button>
+            </div>
+
+            <!-- Load More Loading Spinner -->
+            <div id="loadMoreLoadingSpinner" class="load-more-loading-spinner" style="display: none;">
+                <div class="spinner"></div>
+                <p>Loading photos...</p>
+            </div>
         </div>
 
         <!-- End of gallery indicator -->
@@ -59,12 +86,13 @@
         </div>
     </section>
 
-    <!-- Contact Section -->
-    <section id="contact" class="contact-section">
-        <div class="contact-wrapper">
-            <h2>Let's Create Magic Together</h2>
-            <p>Book your wedding photography session with us</p>
-            <a href="mailto:hello@photobook.com" class="btn btn-primary">Contact Us</a>
+    <!-- Appreciation Section -->
+    <section id="appreciate" class="appreciate-section">
+        <div class="appreciate-wrapper">
+            <h2>Thank You</h2>
+            <p>We are deeply grateful for everyone who joined us on this special day and made our wedding celebration truly unforgettable. Your presence filled our hearts with joy and created memories that will last a lifetime. Thank you for traveling near and far, for celebrating with us, and for being part of this beautiful chapter of our love story.</p>
+            <p class="appreciate-subtext">Your kind words, warm wishes, and genuine support meant the world to us during this incredible journey. From the smallest gestures to the grandest celebrations, every moment was made special because of you. These photographs capture not just the events of the day, but the love and happiness that surrounded us. As we look through these images, we're reminded of the wonderful people in our lives and the precious moments we'll treasure forever. Thank you for being our family, our friends, and our village of love.</p>
+            <p class="appreciate-closing">With all our love,<br><strong>Azhar & Fathin</strong></p>
         </div>
     </section>
 
@@ -88,6 +116,12 @@
                     <polyline points="9 18 15 12 9 6"></polyline>
                 </svg>
             </button>
+            <button id="lightboxLikeBtn" class="lightbox-like-btn" aria-label="Like this photo">
+                <svg class="like-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+                </svg>
+                <span class="lightbox-like-count">0</span>
+            </button>
             <div class="lightbox-info">
                 <p id="lightboxCaption"></p>
                 <p id="lightboxCounter"></p>
@@ -96,13 +130,12 @@
         <div class="lightbox-overlay"></div>
     </div>
 
-    <!-- Skeleton Loader Template -->
-    <template id="skeletonTemplate">
-        <div class="photo-card skeleton">
-            <div class="skeleton-image"></div>
-            <div class="skeleton-text"></div>
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="footer-content">
+            <p class="footer-credits">Designed & developed with <span class="heart">♥</span> by <a href="https://azharazziz.github.io" target="_blank" rel="noopener noreferrer">Azhar Azziz</a></p>
         </div>
-    </template>
+    </footer>
 
     <script src="/js/app.js"></script>
 </body>

@@ -2,8 +2,37 @@ const express = require('express');
 const fs = require('fs');
 const path = require('path');
 const sharp = require('sharp');
+const sqlite3 = require('sqlite3').verbose();
 const app = express();
 const PORT = 3000;
+
+// SQLite Database Setup
+const dbPath = path.join(__dirname, 'data', 'photobook.db');
+const dataDir = path.join(__dirname, 'data');
+
+// Ensure data directory exists
+if (!fs.existsSync(dataDir)) {
+  fs.mkdirSync(dataDir, { recursive: true });
+}
+
+const db = new sqlite3.Database(dbPath, (err) => {
+  if (err) {
+    console.error('Error opening database:', err);
+  } else {
+    console.log('Connected to SQLite database');
+    // Create likes table if it doesn't exist
+    db.run(`
+      CREATE TABLE IF NOT EXISTS photo_likes (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        photo_id INTEGER NOT NULL,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      )
+    `, (err) => {
+      if (err) console.error('Error creating likes table:', err);
+      else console.log('Likes table ready');
+    });
+  }
+});
 
 // Middleware
 app.use(express.static('public'));
@@ -118,6 +147,56 @@ app.post('/api/refresh-cache', (req, res) => {
   res.json({ success: true, message: 'Cache refreshed' });
 });
 
+// Get likes count for a specific photo
+app.get('/api/photos/:photoId/likes', (req, res) => {
+  const photoId = parseInt(req.params.photoId);
+  
+  db.get('SELECT COUNT(*) as count FROM photo_likes WHERE photo_id = ?', [photoId], (err, row) => {
+    if (err) {
+      console.error('Error getting likes:', err);
+      return res.status(500).json({ success: false, error: err.message });
+    }
+    res.json({ success: true, likes: row.count, photoId: photoId });
+  });
+});
+
+// Like a photo
+app.post('/api/photos/:photoId/like', (req, res) => {
+  const photoId = parseInt(req.params.photoId);
+  
+  db.run('INSERT INTO photo_likes (photo_id) VALUES (?)', [photoId], function(err) {
+    if (err) {
+      console.error('Error adding like:', err);
+      return res.status(500).json({ success: false, error: err.message });
+    }
+    
+    // Get updated count
+    db.get('SELECT COUNT(*) as count FROM photo_likes WHERE photo_id = ?', [photoId], (err, row) => {
+      if (err) {
+        return res.status(500).json({ success: false, error: err.message });
+      }
+      res.json({ success: true, likes: row.count, photoId: photoId, message: 'Photo liked!' });
+    });
+  });
+});
+
+// Get all likes counts for all photos
+app.get('/api/photos/likes/all', (req, res) => {
+  db.all('SELECT photo_id, COUNT(*) as count FROM photo_likes GROUP BY photo_id', (err, rows) => {
+    if (err) {
+      console.error('Error getting all likes:', err);
+      return res.status(500).json({ success: false, error: err.message });
+    }
+    
+    const likesMap = {};
+    rows.forEach(row => {
+      likesMap[row.photo_id] = row.count;
+    });
+    
+    res.json({ success: true, likes: likesMap });
+  });
+});
+
 // Serve main page
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'views', 'index.html'));
@@ -128,4 +207,5 @@ app.listen(PORT, () => {
   console.log(`🎉 Wedding Photobook Express Server running at http://localhost:${PORT}`);
   console.log(`📁 Place your images in the 'images' folder (JPG, PNG, GIF, WEBP)`);
   console.log(`🖼️  API endpoint: http://localhost:${PORT}/api/photos?page=1`);
+  console.log(`❤️  Likes API: http://localhost:${PORT}/api/photos/likes/all`);
 });
