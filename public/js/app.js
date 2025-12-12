@@ -201,29 +201,10 @@ function renderPhotos(photos, clear = false) {
         img.alt = photo.alt;
         img.loading = 'lazy';
 
-        // Blur-up effect - create a placeholder
-        const placeholder = document.createElement('div');
-        placeholder.style.cssText = `
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: linear-gradient(45deg, #e8f4f0 25%, transparent 25%, transparent 75%, #e8f4f0 75%, #e8f4f0),
-                        linear-gradient(45deg, #e8f4f0 25%, transparent 25%, transparent 75%, #e8f4f0 75%, #e8f4f0);
-            background-size: 40px 40px;
-            background-position: 0 0, 20px 20px;
-            background-color: #d9ebe5;
-            z-index: 1;
-            filter: blur(8px);
-        `;
-
-        photoCard.appendChild(placeholder);
         photoCard.appendChild(img);
 
         // Fade in animation on load and compute grid row span for masonry
         img.onload = () => {
-            placeholder.style.display = 'none';
             photoCard.style.opacity = '1';
             photoCard.style.transition = 'opacity 0.6s ease';
 
@@ -237,11 +218,8 @@ function renderPhotos(photos, clear = false) {
         };
 
         img.onerror = () => {
-            placeholder.textContent = '⚠️ Image not found';
-            placeholder.style.display = 'flex';
-            placeholder.style.alignItems = 'center';
-            placeholder.style.justifyContent = 'center';
-            placeholder.style.color = '#666';
+            // Handle error gracefully
+            photoCard.style.opacity = '1';
         };
 
         photoCard.addEventListener('click', () => {
